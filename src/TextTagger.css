@@ -1,0 +1,17 @@
+#main {
+    border: 1px solid #e6e6e6;
+    padding: 5px;
+    background-color: #fcf8e3;
+}
+#main, span.token {
+    cursor: pointer;
+}
+span.token.active {
+    background-color: #656565;
+    color: #ffffff;
+}
+/* override bootstrap menu style */
+ul.dropdown-menu.context-menu {
+    position: fixed;
+    display: block;
+}
