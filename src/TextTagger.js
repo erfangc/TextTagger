@@ -52,7 +52,7 @@ jQuery.fn.textTagger = function (text, tagTypes, callback) {
                         taggedText: textTagger.currentSelection.join(" ")
                     })
                 }
-                resetState();
+                resetState()
             })
         } else { // user must have initiated selection
             $(this).addClass('active')

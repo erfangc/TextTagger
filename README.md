@@ -12,9 +12,9 @@ Text Tagger plugin using jQuery (potentially expandable to AngularJS) A simple w
 
 ## Usage
 
-    $("#myDiv").textTagger(text, tagTypes, callbackFn)
+    $("#myDiv").textTagger(text <String>, tagTypes <Array of Object>, callbackFn <Function>)
 
-`callbackFn` is fired once the user have highlighted a segment of `text` and chosen a "type" from the options available in `tagTypes`. See below an example.
+`callbackFn` is fired once the user have highlighted a sub-string in `text` and chosen a "type" from the options available in `tagTypes`. See below an example.
 
 ## Example
     $(function () {
