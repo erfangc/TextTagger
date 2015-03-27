@@ -24,7 +24,10 @@ jQuery.fn.textTagger = function (text, tagTypes, callback) {
     // click event handler
     $mainElem.children("span").on('click', function (e) {
         var $elem = $(this)
-        if (highlightMode) { // user must have terminated selection
+        if (highlightMode) { // user must have terminated selection, so show them a context menu
+
+            // temporarily turn off highlighting mode while context menu active
+            highlightMode = false
             showContextMenu(e).done(function (selection) {
                 if (selection != 'cancel') {
                     // Fire Call Back
@@ -37,6 +40,9 @@ jQuery.fn.textTagger = function (text, tagTypes, callback) {
                     currentSelection = []
                     currentIndex = NaN
                     $mainElem.children("span.active").removeClass('active')
+                } else {
+                    // user must have hit the cancel button, re-enable highlighting
+                    highlightMode = true
                 }
                 $contextMenu.detach()
             })
@@ -48,8 +54,10 @@ jQuery.fn.textTagger = function (text, tagTypes, callback) {
         }
     })
 
+    // hover event handler - once in highlight mode, hovering causes additional words to be added to the selection
     $mainElem.children("span").hover(
         function () {
+            if (!highlightMode) return
             var $elem
             var selectedIndex = $(this).index()
             if (selectedIndex > currentIndex) { // user is continuing selection

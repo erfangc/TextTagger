@@ -1,13 +1,8 @@
-#main {
-    border: 1px solid #e6e6e6;
-    padding: 5px;
-    background-color: #fcf8e3;
-}
-#main, span.token {
+span.token {
     cursor: pointer;
 }
 span.token.active {
-    background-color: #656565;
+    background-color: #25257d;
     color: #ffffff;
 }
 /* override bootstrap menu style */
