@@ -18,15 +18,27 @@ jQuery.fn.textTagger = function (text, tagTypes, callback) {
     var $contextMenu = $(
         "<ul class='dropdown-menu context-menu' role='menu'>" +
         "<li role='presentation' class='bg-danger' data-type='cancel'><a role='menuitem'><span>Cancel</span></span></a></li>" +
-        "</ul>").prepend(tagTypes.map(
+        "</ul>"
+    ).prepend(tagTypes.map(
             function (type) {
                 return $("<li role='presentation' data-type='" + type.value + "'><a role='menuitem'>" + type.textLabel + "</a></li>")
             }
-        )).hide()
+        )
+    ).hide()
 
     $mainElem.append($textPane).append($contextMenu)
 
     // click event handler
+    function resetState() {
+        $textPane.children("span.active").removeClass('active')
+        textTagger = {
+            highlightMode: false,
+            currentIndex: NaN,
+            currentSelection: []
+        }
+        $contextMenu.hide()
+    }
+
     $textPane.children("span").on('click', function (e) {
         var $elem = $(this)
         if (textTagger.highlightMode) { // user must have terminated selection, so show them a context menu
@@ -34,23 +46,13 @@ jQuery.fn.textTagger = function (text, tagTypes, callback) {
             textTagger.highlightMode = false
             showContextMenu(e).done(function (selection) {
                 if (selection != 'cancel') {
-                    // Fire Call Back
                     callback({
                         type: selection,
                         nlpText: getNLPText(textTagger.currentIndex - textTagger.currentSelection.length + 1, textTagger.currentIndex, selection),
                         taggedText: textTagger.currentSelection.join(" ")
                     })
-                    // reset everything
-                    textTagger = {
-                        highlightMode: false,
-                        currentIndex: NaN,
-                        currentSelection: []
-                    }
-                    $textPane.children("span.active").removeClass('active')
-                } else // user must have hit the cancel button, re-enable highlighting
-                    textTagger.highlightMode = true
-
-                $contextMenu.hide()
+                }
+                resetState();
             })
         } else { // user must have initiated selection
             $(this).addClass('active')
@@ -113,6 +115,5 @@ jQuery.fn.textTagger = function (text, tagTypes, callback) {
     }
 
     return textTagger
+
 }
-
-

@@ -2,8 +2,9 @@ span.token {
     cursor: pointer;
 }
 span.token.active {
-    background-color: #25257d;
+    background-color: #3288e6;
     color: #ffffff;
+    border-radius: 2px;
 }
 /* override bootstrap menu style */
 ul.dropdown-menu.context-menu {
