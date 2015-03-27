@@ -2,7 +2,7 @@
 
 Text Tagger plugin using jQuery (potentially expandable to AngularJS) A simple widget that enables user to highlight text with hover instead of drag. With the ability to bring up a context menu. Useful for allowing users to tag/annotate text
 
-# Install
+## Install
 
     bower install textTagger
     
@@ -10,6 +10,43 @@ Text Tagger plugin using jQuery (potentially expandable to AngularJS) A simple w
     <link rel="stylesheet" href="src/TextTagger.css"/>
     <script src="src/TextTagger.js"></script>
 
-# Usage
+## Usage
 
-    $("#myDiv").textTagger("Text to be tagged", ["Tag Option 1","Tag Option 2"], function(tagResult){ ... })
+    $("#myDiv").textTagger(text, tagTypes, callbackFn)
+
+`callbackFn` is fired once the user have highlighted a segment of `text` and chosen a "type" from the options available in `tagTypes`. See below an example.
+
+## Example
+    $(function () {
+        $("#main").textTagger("Lorem ipsum dolor sit amet, sit lacus vestibulum vel platea aliquam.",
+        [
+            {
+                textLabel: 'Organization',
+                value: 'organization'
+            },
+            {
+                textLabel: 'Person',
+                value: 'person'
+            },
+            {
+                textLabel: 'Policy',
+                value: 'policy'
+            },
+            {
+                textLabel: 'Location',
+                value: 'location'
+            },
+            {
+                textLabel: 'Product',
+                value: 'product'
+            }
+        ], function (userTaggedResult) {
+            console.log(userTaggedResult);
+        })
+    })
+
+The argument passed to the `callbackFn` contains the following properties: `type`, `taggedText` and `nlpText`
+
+`nlpText` comprises of raw text interlaced with the user tagged text, denoted as `<START:type> [User Tagged Text] <END>`. This notation is compatible with OpenNLP Named Entity Recognition training engine.
+
+
