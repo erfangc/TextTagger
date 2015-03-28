@@ -1,6 +1,7 @@
-span.token {
+span.token, span.tagged, li.menu-item {
     cursor: pointer;
 }
+
 span.token.active {
     background-color: #3288e6;
     color: #ffffff;
@@ -10,14 +11,25 @@ span.token.active {
 span.tagged {
     color: #ffffff;
 }
+
 span.tagged.person {
     background-color: #00b3ee;
 }
+
 span.tagged.organization {
     background-color: #449d44;
 }
+
 span.tagged.policy {
     background-color: #b92c28;
+}
+
+span.tagged.location {
+    background-color: #e38d13;
+}
+
+span.tagged.product {
+    background-color: #101010;
 }
 
 /* override bootstrap menu style */

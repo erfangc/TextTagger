@@ -9,73 +9,38 @@ jQuery.fn.textTagger = function (text, tagTypes, callback) {
         highlightMode: false,
         endIdx: NaN,
         startIdx: NaN,
-        currentSelection: []
-    }, $contextMenu = $(
-        "<ul class='dropdown-menu context-menu' role='menu'>" +
-        "<li role='presentation' class='bg-danger' data-type='cancel'><a role='menuitem'><span>Cancel</span></span></a></li>" +
-        "</ul>"
+        limit: NaN, // determined when entering highlight mode
+        selectedToken: []
+    }
+
+    /*
+     * create context menus for creation/modification mode
+     */
+    var $contextMenu = $(
+        "<ul class='dropdown-menu context-menu' role='menu'></ul>"
     ).prepend(tagTypes.map(
             function (type) {
-                return $("<li role='presentation' data-type='" + type.value + "'><a role='menuitem'>" + type.textLabel + "</a></li>")
+                return $("<li class='menu-item' role='presentation' data-type='" + type.value + "'><a role='menuitem'>" + type.textLabel + "</a></li>")
             }
         )
     ).hide()
+    var $cancel = $("<li role='presentation' class='bg-warning menu-item' data-type='cancel'><a role='menuitem'><span>Cancel</span></span></a></li>")
+    var $delete = $("<li role='presentation' class='bg-danger menu-item' data-type='delete'><a role='menuitem'><span>Delete</span></span></a></li>")
+    var $creationMenu = $contextMenu.clone().append($cancel.clone())
+    var $modificationMenu = $contextMenu.clone().append($delete.clone()).append($cancel.clone())
 
-    $mainElem.append($textPane).append($contextMenu)
+    $mainElem.append($textPane).append($creationMenu).append($modificationMenu)
 
-    $textPane.children("span").on('click', function (e) {
-        var $elem = $(this)
-        // user must have terminated selection, so show them a context menu
-        if (currentAction.highlightMode) {
-            currentAction.highlightMode = false
-            showContextMenu(e).done(function (selectedType) {
-                if (selectedType != 'cancel') {
-                    addTaggedSpansToHTML($textPane, currentAction, selectedType)
-                    callback({
-                        type: selectedType,
-                        nlpText: convertHTMLToAnnotatedText($textPane),
-                        taggedText: currentAction.currentSelection.join(" ")
-                    })
-                }
-                resetState()
-            })
-        } else { // user must have initiated selection
-            $(this).addClass('active')
-            currentAction.startIdx = $elem.index()
-            currentAction.endIdx = $elem.index()
-            currentAction.currentSelection.push($elem.text())
-            currentAction.highlightMode = true
-        }
-    })
+    // when tokens are clicked either begin/end tagging
+    $textPane.children("span.token").on('click', handleTokenClick)
+
+    // when tagged content is clicked - trigger modification
+    $textPane.children("span.tagged").on('click', handleModification)
 
     // hover event handler - once in highlight mode, hovering causes additional words to be added to the selection
-    $textPane.children("span").hover(
-        // TODO disable the hover if overlapping with a tagged span
-        function () {
-            if (!currentAction.highlightMode) return
-            var $elem
-            var selectedIndex = $(this).index()
-            if (selectedIndex > currentAction.endIdx) { // user is continuing selection
-                $elem = $($(this).siblings().andSelf().get(currentAction.endIdx + 1))
-                while (selectedIndex > currentAction.endIdx) {
-                    $elem.addClass('active')
-                    currentAction.currentSelection.push($elem.text())
-                    currentAction.endIdx++
-                    $elem = $elem.next('span.token')
-                }
-            } else if (selectedIndex < currentAction.endIdx) { // user must have rewinded selection
-                $elem = $(this).next('span.token.active')
-                while ($elem.length > 0) {
-                    $elem.removeClass('active')
-                    currentAction.currentSelection.pop()
-                    $elem = $elem.next('span.token.active')
-                    currentAction.endIdx = selectedIndex
-                }
-            }
-        }
-    )
+    $textPane.children("span").hover(handleTokenHover)
 
-    function showContextMenu(lastEvent) {
+    function showContextMenu(lastEvent, $contextMenu) {
         var $promise = $.Deferred()
         $contextMenu.css({
             top: lastEvent.pageY + "px",
@@ -88,15 +53,114 @@ jQuery.fn.textTagger = function (text, tagTypes, callback) {
         return $promise
     }
 
+    function handleModification(event) {
+        var $elem = $(this)
+        showContextMenu(event, $modificationMenu).done(function (selectedType) {
+            if (selectedType == 'delete') {
+                $elem.before($(textToSpan($elem.text())).on('click', handleTokenClick).hover(handleTokenHover)).remove()
+                callback({
+                    type: selectedType,
+                    nlpText: convertHTMLToAnnotatedText($textPane),
+                    taggedText: currentAction.selectedToken.join(" ")
+                })
+            }
+            else if (selectedType != 'cancel') {
+                $.each(tagTypes, function (idx, tagType) {
+                    $elem.removeClass(tagType.value)
+                })
+                $elem.addClass(selectedType)
+                $elem.attr('data-type', selectedType)
+                callback({
+                    type: selectedType,
+                    nlpText: convertHTMLToAnnotatedText($textPane),
+                    taggedText: currentAction.selectedToken.join(" ")
+                })
+            }
+            resetState()
+        })
+    }
+
+    function handleTokenClick(event) {
+        var $elem = $(this)
+        // user must have terminated selection, so show them a context menu
+        if (currentAction.highlightMode) {
+            currentAction.highlightMode = false
+            showContextMenu(event, $creationMenu).done(function (selectedType) {
+                if (selectedType != 'cancel') {
+                    addTaggedSpanToHTML($textPane, currentAction, selectedType)
+                    callback({
+                        type: selectedType,
+                        nlpText: convertHTMLToAnnotatedText($textPane),
+                        taggedText: currentAction.selectedToken.join(" ")
+                    })
+                }
+                resetState()
+            })
+        } else { // user must have initiated selection
+            $(this).addClass('active')
+            currentAction.startIdx = $elem.index()
+            currentAction.endIdx = $elem.index()
+            currentAction.selectedToken.push($elem.text())
+            currentAction.limit = computeHighlightLimit($elem.index(), $textPane) // limit = index of the next tagged entity
+            currentAction.highlightMode = true
+        }
+    }
+
+    function handleTokenHover(event) {
+        if (!highlightable(currentAction, $(this)))
+            return
+
+        var $elem
+        var selectedIndex = $(this).index()
+        // user is continuing selection
+        if (selectedIndex > currentAction.endIdx) {
+            $elem = $($(this).siblings().andSelf().get(currentAction.endIdx + 1))
+            while (selectedIndex > currentAction.endIdx) {
+                $elem.addClass('active')
+                currentAction.selectedToken.push($elem.text())
+                currentAction.endIdx++
+                $elem = $elem.next('span.token')
+            }
+        } else if (selectedIndex < currentAction.endIdx) { // user must have rewinded selection
+            $elem = $(this).next('span.token.active')
+            while ($elem.length > 0) {
+                $elem.removeClass('active')
+                currentAction.selectedToken.pop()
+                $elem = $elem.next('span.token.active')
+                currentAction.endIdx = selectedIndex
+            }
+        }
+
+        function highlightable(currentAction, $elem) {
+            return currentAction.highlightMode && $elem.index() < currentAction.limit
+        }
+
+    }
+
     /**
-     * Converts OpenNLP style annotated text to <span></span> wrapped HTML jQuery element
+     * Determines the location of the next tagged entity within the text. Used to prevent overlapping named entity identification
+     *
+     * @param index the starting index
+     * @param $textPane jQuery element containing <span/> wrapped tokens
+     * @return {number}
+     */
+    function computeHighlightLimit(index, $textPane) {
+        var dataArray = $textPane.children('span')
+        for (var i = 0; i < dataArray.length; i++) {
+            if ($(dataArray.get(i)).hasClass('tagged') && i > index)
+                return i
+        }
+        return dataArray.length
+    }
+
+    /**
+     * Converts OpenNLP style annotated text to <span/> wrapped HTML jQuery element
      * @param rawText String with annotated text
      * @return jQuery element that wraps the text
      */
     function convertAnnotatedTextToHTML(rawText) {
         var normalTokens = rawText.split(/<START:\w+>[\w|\s]+<END>/g).map(function (tokenFragment) {
-            // TODO wrap punctuation as well
-            return tokenFragment.replace(/\b(\w+)\b/g, "<span class='token'>$1</span>")
+            return textToSpan(tokenFragment)
         })
 
         var taggedMatches = rawText.match(/<START:(\w+)>([\w|\s]+)<END>/g)
@@ -112,7 +176,7 @@ jQuery.fn.textTagger = function (text, tagTypes, callback) {
     }
 
     /**
-     * Converts HTML jQuery element containing <span></span> text to OpenNLP style annotated text
+     * Converts HTML jQuery element containing <span/> text to OpenNLP style annotated text
      * @param $htmlContainer jQuery object that wraps around the underlying HTML
      * @return Plain text annotated with OpenNLP tags
      */
@@ -134,10 +198,9 @@ jQuery.fn.textTagger = function (text, tagTypes, callback) {
      * @param end end of the tag to be added
      * @param type the type of tag to add
      */
-    function addTaggedSpansToHTML($htmlContainer, currentTag, type) {
+    function addTaggedSpanToHTML($htmlContainer, currentTag, type) {
         // the original text is ruined if it contained any symbols ....
-        var $newContent = $("<span data-type='" + type + "' class='" + type + " tagged'>" + currentTag.currentSelection.join(" ") + "</span>")
-        // TODO completely not working ... need algo to replace all active spans with $newContent
+        var $newContent = $("<span data-type='" + type + "' class='" + type + " tagged'>" + currentTag.selectedToken.join(" ") + "</span>").on('click', handleModification)
         $htmlContainer.children("span.token.active").first().before($newContent)
         $htmlContainer.children("span.token.active").remove()
     }
@@ -148,11 +211,18 @@ jQuery.fn.textTagger = function (text, tagTypes, callback) {
             highlightMode: false,
             endIdx: NaN,
             startIdx: NaN,
-            currentSelection: []
+            limit: NaN,
+            selectedToken: []
         }
-        $contextMenu.hide()
+        $creationMenu.hide()
+        $modificationMenu.hide()
     }
 
-    // TODO support for editing/deleting existing tags
+}
 
+// helper
+function textToSpan(text) {
+    return text.split(' ').map(function (token) {
+        return "<span class='token'>" + token + "</span>"
+    }).join(' ')
 }

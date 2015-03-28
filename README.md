@@ -14,7 +14,7 @@ Text Tagger plugin using jQuery (potentially expandable to AngularJS) A simple w
 
     $("#myDiv").textTagger(text <String>, tagTypes <Array of Object>, callbackFn <Function>)
 
-`callbackFn` is fired once the user have highlighted a sub-string in `text` and chosen a "type" from the options available in `tagTypes`. See below an example.
+`callbackFn` is fired every time the user have highlighted a sub-string in `text` and chosen a "type" from the options available in `tagTypes`. See below an example.
 
 ## Example
     $(function () {
@@ -49,4 +49,4 @@ The argument passed to the `callbackFn` contains the following properties: `type
 
 `nlpText` comprises of raw text interlaced with the user tagged text, denoted as `<START:type> [User Tagged Text] <END>`. This notation is compatible with OpenNLP Named Entity Recognition training engine.
 
-
+You can pre-tag text using OpenNLP notation. For example `foo bar <START:person>John Doe<END>`
