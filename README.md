@@ -1,6 +1,6 @@
 # TextTagger
 
-Text Tagger plugin using jQuery (potentially expandable to AngularJS) A simple widget that enables user to highlight text with hover instead of drag. With the ability to bring up a context menu. Useful for allowing users to tag/annotate text
+Text Tagger plugin using jQuery is a simple widget that enables user to highlight text with hover instead of drag. With the ability to bring up a context menu. Useful for allowing users to tag/annotate text
 
 ## Install
 
