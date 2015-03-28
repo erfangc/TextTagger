@@ -5,17 +5,12 @@
  */
 jQuery.fn.textTagger = function (text, tagTypes, callback) {
 
-    var $mainElem = $(this)
-    var $textPane = $('<div></div>').html(convertAnnotatedTextToHTML(text))
-
-    // these needs to reset
-    var textTagger = {
+    var $mainElem = $(this), $textPane = convertAnnotatedTextToHTML(text), currentAction = {
         highlightMode: false,
-        currentIndex: NaN,
+        endIdx: NaN,
+        startIdx: NaN,
         currentSelection: []
-    }
-
-    var $contextMenu = $(
+    }, $contextMenu = $(
         "<ul class='dropdown-menu context-menu' role='menu'>" +
         "<li role='presentation' class='bg-danger' data-type='cancel'><a role='menuitem'><span>Cancel</span></span></a></li>" +
         "</ul>"
@@ -28,61 +23,53 @@ jQuery.fn.textTagger = function (text, tagTypes, callback) {
 
     $mainElem.append($textPane).append($contextMenu)
 
-    // click event handler
-    function resetState() {
-        $textPane.children("span.active").removeClass('active')
-        textTagger = {
-            highlightMode: false,
-            currentIndex: NaN,
-            currentSelection: []
-        }
-        $contextMenu.hide()
-    }
-
     $textPane.children("span").on('click', function (e) {
         var $elem = $(this)
-        if (textTagger.highlightMode) { // user must have terminated selection, so show them a context menu
-            // temporarily turn off highlighting mode while context menu active
-            textTagger.highlightMode = false
-            showContextMenu(e).done(function (selection) {
-                if (selection != 'cancel') {
+        // user must have terminated selection, so show them a context menu
+        if (currentAction.highlightMode) {
+            currentAction.highlightMode = false
+            showContextMenu(e).done(function (selectedType) {
+                if (selectedType != 'cancel') {
+                    addTaggedSpansToHTML($textPane, currentAction, selectedType)
                     callback({
-                        type: selection,
-                        nlpText: getNLPText(textTagger.currentIndex - textTagger.currentSelection.length + 1, textTagger.currentIndex, selection),
-                        taggedText: textTagger.currentSelection.join(" ")
+                        type: selectedType,
+                        nlpText: convertHTMLToAnnotatedText($textPane),
+                        taggedText: currentAction.currentSelection.join(" ")
                     })
                 }
                 resetState()
             })
         } else { // user must have initiated selection
             $(this).addClass('active')
-            textTagger.currentIndex = $elem.index()
-            textTagger.currentSelection.push($elem.text())
-            textTagger.highlightMode = true
+            currentAction.startIdx = $elem.index()
+            currentAction.endIdx = $elem.index()
+            currentAction.currentSelection.push($elem.text())
+            currentAction.highlightMode = true
         }
     })
 
     // hover event handler - once in highlight mode, hovering causes additional words to be added to the selection
     $textPane.children("span").hover(
+        // TODO disable the hover if overlapping with a tagged span
         function () {
-            if (!textTagger.highlightMode) return
+            if (!currentAction.highlightMode) return
             var $elem
             var selectedIndex = $(this).index()
-            if (selectedIndex > textTagger.currentIndex) { // user is continuing selection
-                $elem = $($(this).siblings().andSelf().get(textTagger.currentIndex + 1))
-                while (selectedIndex > textTagger.currentIndex) {
+            if (selectedIndex > currentAction.endIdx) { // user is continuing selection
+                $elem = $($(this).siblings().andSelf().get(currentAction.endIdx + 1))
+                while (selectedIndex > currentAction.endIdx) {
                     $elem.addClass('active')
-                    textTagger.currentSelection.push($elem.text())
-                    textTagger.currentIndex++
+                    currentAction.currentSelection.push($elem.text())
+                    currentAction.endIdx++
                     $elem = $elem.next('span.token')
                 }
-            } else if (selectedIndex < textTagger.currentIndex) { // user must have rewinded selection
+            } else if (selectedIndex < currentAction.endIdx) { // user must have rewinded selection
                 $elem = $(this).next('span.token.active')
                 while ($elem.length > 0) {
                     $elem.removeClass('active')
-                    textTagger.currentSelection.pop()
+                    currentAction.currentSelection.pop()
                     $elem = $elem.next('span.token.active')
-                    textTagger.currentIndex = selectedIndex
+                    currentAction.endIdx = selectedIndex
                 }
             }
         }
@@ -101,51 +88,71 @@ jQuery.fn.textTagger = function (text, tagTypes, callback) {
         return $promise
     }
 
-    // TODO deprecate function in favor of the converter
-    function getNLPText(start, end, type) {
-        // copy the entire text with the spans in memory
-        var $text = $textPane.clone()
-
-        var $start = $($text.children('span')[start])
-        $start.html("&lt;START:" + type + "&gt; " + $start.text())
-
-        var $end = $($text.children('span')[end])
-        $end.html($end.text() + " &lt;END&gt;")
-
-        return $text.text()
-    }
-
     /**
      * Converts OpenNLP style annotated text to <span></span> wrapped HTML jQuery element
      * @param rawText String with annotated text
+     * @return jQuery element that wraps the text
      */
     function convertAnnotatedTextToHTML(rawText) {
         var normalTokens = rawText.split(/<START:\w+>[\w|\s]+<END>/g).map(function (tokenFragment) {
+            // TODO wrap punctuation as well
             return tokenFragment.replace(/\b(\w+)\b/g, "<span class='token'>$1</span>")
         })
 
         var taggedMatches = rawText.match(/<START:(\w+)>([\w|\s]+)<END>/g)
         var taggedTokens = taggedMatches ? taggedMatches.map(function (match) {
-            return match.replace(/<START:(\w+)>([\w|\s]+)<END>/g, "<span class='$1'>$2</span>")
+            return match.replace(/<START:(\w+)>([\w|\s]+)<END>/g, "<span data-type='$1' class='$1 tagged'>$2</span>")
         }) : []
 
         var result = normalTokens[0]
         for (var i = 0; i < taggedTokens.length; i++) {
             result = result + taggedTokens[i] + normalTokens[i + 1]
         }
-        return result
+        return $("<div>" + result + "</div>")
     }
 
     /**
      * Converts HTML jQuery element containing <span></span> text to OpenNLP style annotated text
      * @param $htmlContainer jQuery object that wraps around the underlying HTML
+     * @return Plain text annotated with OpenNLP tags
      */
-    function convertHTMLToAnnotated($htmlContainer) {
-        // TODO implement
+    function convertHTMLToAnnotatedText($htmlContainer) {
+        var $html = $htmlContainer.clone()
+        // for every span w/ class 'tagged' we surround the inner text with <START:...>...<END>
+        $.each($html.children('span.tagged'), function (idx, taggedSpan) {
+            var $taggedSpan = $(taggedSpan)
+            $taggedSpan.html("&lt;START:" + $taggedSpan.data('type') + "&gt; " + $taggedSpan.text() + " &lt;END&gt;")
+        })
+        // flatten all the spans into plain text
+        return $html.text()
     }
 
-    // TODO support multiple name tagging + highlighting and editing existing tags
+    /**
+     * Convert a set of <span/> elements into a single <span/> element that constitute a tagged entity
+     * @param $htmlContainer The jQuery container element to tag
+     * @param start start of the tag to be added
+     * @param end end of the tag to be added
+     * @param type the type of tag to add
+     */
+    function addTaggedSpansToHTML($htmlContainer, currentTag, type) {
+        // the original text is ruined if it contained any symbols ....
+        var $newContent = $("<span data-type='" + type + "' class='" + type + " tagged'>" + currentTag.currentSelection.join(" ") + "</span>")
+        // TODO completely not working ... need algo to replace all active spans with $newContent
+        $htmlContainer.children("span.token.active").first().before($newContent)
+        $htmlContainer.children("span.token.active").remove()
+    }
 
-    return textTagger
+    function resetState() {
+        $textPane.children("span.active").removeClass('active')
+        currentAction = {
+            highlightMode: false,
+            endIdx: NaN,
+            startIdx: NaN,
+            currentSelection: []
+        }
+        $contextMenu.hide()
+    }
+
+    // TODO support for editing/deleting existing tags
 
 }

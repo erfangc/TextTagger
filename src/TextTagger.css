@@ -6,6 +6,20 @@ span.token.active {
     color: #ffffff;
     border-radius: 2px;
 }
+
+span.tagged {
+    color: #ffffff;
+}
+span.tagged.person {
+    background-color: #00b3ee;
+}
+span.tagged.organization {
+    background-color: #449d44;
+}
+span.tagged.policy {
+    background-color: #b92c28;
+}
+
 /* override bootstrap menu style */
 ul.dropdown-menu.context-menu {
     position: fixed;
