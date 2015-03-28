@@ -6,7 +6,7 @@
 jQuery.fn.textTagger = function (text, tagTypes, callback) {
 
     var $mainElem = $(this)
-    var $textPane = $('<div></div>').html(text.replace(/\b(\w+)\b/g, "<span class='token'>$1</span>"))
+    var $textPane = $('<div></div>').html(convertAnnotatedTextToHTML(text))
 
     // these needs to reset
     var textTagger = {
@@ -101,6 +101,7 @@ jQuery.fn.textTagger = function (text, tagTypes, callback) {
         return $promise
     }
 
+    // TODO deprecate function in favor of the converter
     function getNLPText(start, end, type) {
         // copy the entire text with the spans in memory
         var $text = $textPane.clone()
@@ -113,6 +114,37 @@ jQuery.fn.textTagger = function (text, tagTypes, callback) {
 
         return $text.text()
     }
+
+    /**
+     * Converts OpenNLP style annotated text to <span></span> wrapped HTML jQuery element
+     * @param rawText String with annotated text
+     */
+    function convertAnnotatedTextToHTML(rawText) {
+        var normalTokens = rawText.split(/<START:\w+>[\w|\s]+<END>/g).map(function (tokenFragment) {
+            return tokenFragment.replace(/\b(\w+)\b/g, "<span class='token'>$1</span>")
+        })
+
+        var taggedMatches = rawText.match(/<START:(\w+)>([\w|\s]+)<END>/g)
+        var taggedTokens = taggedMatches ? taggedMatches.map(function (match) {
+            return match.replace(/<START:(\w+)>([\w|\s]+)<END>/g, "<span class='$1'>$2</span>")
+        }) : []
+
+        var result = normalTokens[0]
+        for (var i = 0; i < taggedTokens.length; i++) {
+            result = result + taggedTokens[i] + normalTokens[i + 1]
+        }
+        return result
+    }
+
+    /**
+     * Converts HTML jQuery element containing <span></span> text to OpenNLP style annotated text
+     * @param $htmlContainer jQuery object that wraps around the underlying HTML
+     */
+    function convertHTMLToAnnotated($htmlContainer) {
+        // TODO implement
+    }
+
+    // TODO support multiple name tagging + highlighting and editing existing tags
 
     return textTagger
 
