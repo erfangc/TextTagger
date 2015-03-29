@@ -6,7 +6,7 @@ $(function () {
         "tristique fringilla vehicula mauris est.";
     $("#output").text(text)
 
-    $("#main").textTagger(text, [
+    var textTagger = $("#main").textTagger(text, [
         {
             textLabel: 'Organization',
             value: 'organization'
@@ -30,4 +30,9 @@ $(function () {
     ], function (userTaggedResult) {
         $("#output").text(userTaggedResult.nlpText)
     })
+
+    $('#next').on('click', function () {
+        textTagger.setText("This is a new paragraph ... here are some names: <START:person>Jane Doe<END> <START:organization>IMF<END>")
+    })
+
 })

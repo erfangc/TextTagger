@@ -5,41 +5,80 @@
  */
 jQuery.fn.textTagger = function (text, tagTypes, callback) {
 
-    var $mainElem = $(this), $textPane = convertAnnotatedTextToHTML(text), currentAction = {
-        highlightMode: false,
-        endIdx: NaN,
-        startIdx: NaN,
-        limit: NaN, // determined when entering highlight mode
-        selectedToken: []
+    // global variables / state variables
+    var $mainElem = $(this)
+    var $textPane
+    var callbackFn
+    var currentAction
+    var $creationMenu, $modificationMenu
+
+    var api = {
+        setText: function (newText) {
+            if ($textPane)
+                $textPane.remove()
+            $textPane = convertAnnotatedTextToHTML(newText)
+            bindEventHandlers($textPane);
+            $mainElem.prepend($textPane)
+            resetState()
+        },
+        setTagTypes: function (newTagTypes) {
+            var menus = buildContextMenus(newTagTypes)
+            $creationMenu = menus.$creationMenu;
+            $modificationMenu = menus.$modificationMenu;
+            $mainElem.append($creationMenu).append($modificationMenu)
+        },
+        setCallback: function (newCallback) {
+            callbackFn = newCallback
+        }
     }
 
-    /*
-     * create context menus for creation/modification mode
+    // initialization
+    api.setText(text)
+    api.setTagTypes(tagTypes)
+    api.setCallback(callback)
+
+    // ------------ private functions ------------
+
+    /**
+     * Bind events to the toke/span inside $textPane
+     * @param $textPane
      */
-    var $contextMenu = $(
-        "<ul class='dropdown-menu context-menu' role='menu'></ul>"
-    ).prepend(tagTypes.map(
-            function (type) {
-                return $("<li class='menu-item' role='presentation' data-type='" + type.value + "'><a role='menuitem'>" + type.textLabel + "</a></li>")
-            }
-        )
-    ).hide()
-    var $cancel = $("<li role='presentation' class='bg-warning menu-item' data-type='cancel'><a role='menuitem'><span>Cancel</span></span></a></li>")
-    var $delete = $("<li role='presentation' class='bg-danger menu-item' data-type='delete'><a role='menuitem'><span>Delete</span></span></a></li>")
-    var $creationMenu = $contextMenu.clone().append($cancel.clone())
-    var $modificationMenu = $contextMenu.clone().append($delete.clone()).append($cancel.clone())
+    function bindEventHandlers($textPane) {
+        // when tokens are clicked either begin/end tagging
+        $textPane.children("span.token").on('click', handleTokenClick)
+        // when tagged content is clicked - trigger modification
+        $textPane.children("span.tagged").on('click', handleModification)
+        // hover event handler - once in highlight mode, hovering causes additional words to be added to the selection
+        $textPane.children("span").hover(handleTokenHover)
+    }
 
-    $mainElem.append($textPane).append($creationMenu).append($modificationMenu)
+    /**
+     * create context menus for creation/modification mode
+     * @param tagTypes
+     * @return {{$creationMenu: (*|void), $modificationMenu: (*|void)}}
+     */
+    function buildContextMenus(tagTypes) {
+        var $contextMenu = $(
+            "<ul class='dropdown-menu context-menu' role='menu'></ul>"
+        ).prepend(tagTypes.map(
+                function (type) {
+                    return $("<li class='menu-item' role='presentation' data-type='" + type.value + "'><a role='menuitem'>" + type.textLabel + "</a></li>")
+                }
+            )
+        ).hide()
+        var $cancel = $("<li role='presentation' class='bg-warning menu-item' data-type='cancel'><a role='menuitem'><span>Cancel</span></span></a></li>")
+        var $delete = $("<li role='presentation' class='bg-danger menu-item' data-type='delete'><a role='menuitem'><span>Delete</span></span></a></li>")
+        var $creationMenu = $contextMenu.clone().append($cancel.clone())
+        var $modificationMenu = $contextMenu.clone().append($delete.clone()).append($cancel.clone())
+        return {$creationMenu: $creationMenu, $modificationMenu: $modificationMenu};
+    }
 
-    // when tokens are clicked either begin/end tagging
-    $textPane.children("span.token").on('click', handleTokenClick)
-
-    // when tagged content is clicked - trigger modification
-    $textPane.children("span.tagged").on('click', handleModification)
-
-    // hover event handler - once in highlight mode, hovering causes additional words to be added to the selection
-    $textPane.children("span").hover(handleTokenHover)
-
+    /**
+     * Display context menu and return a promised. Resolved when the user selects an item from the displayed context menu
+     * @param lastEvent Javascript Event to help determine/anchor context menu display location
+     * @param $contextMenu
+     * @return {*}
+     */
     function showContextMenu(lastEvent, $contextMenu) {
         var $promise = $.Deferred()
         $contextMenu.css({
@@ -58,7 +97,7 @@ jQuery.fn.textTagger = function (text, tagTypes, callback) {
         showContextMenu(event, $modificationMenu).done(function (selectedType) {
             if (selectedType == 'delete') {
                 $elem.before($(textToSpan($elem.text())).on('click', handleTokenClick).hover(handleTokenHover)).remove()
-                callback({
+                callbackFn({
                     type: selectedType,
                     nlpText: convertHTMLToAnnotatedText($textPane),
                     taggedText: currentAction.selectedToken.join(" ")
@@ -70,7 +109,7 @@ jQuery.fn.textTagger = function (text, tagTypes, callback) {
                 })
                 $elem.addClass(selectedType)
                 $elem.attr('data-type', selectedType)
-                callback({
+                callbackFn({
                     type: selectedType,
                     nlpText: convertHTMLToAnnotatedText($textPane),
                     taggedText: currentAction.selectedToken.join(" ")
@@ -88,7 +127,7 @@ jQuery.fn.textTagger = function (text, tagTypes, callback) {
             showContextMenu(event, $creationMenu).done(function (selectedType) {
                 if (selectedType != 'cancel') {
                     addTaggedSpanToHTML($textPane, currentAction, selectedType)
-                    callback({
+                    callbackFn({
                         type: selectedType,
                         nlpText: convertHTMLToAnnotatedText($textPane),
                         taggedText: currentAction.selectedToken.join(" ")
@@ -206,7 +245,8 @@ jQuery.fn.textTagger = function (text, tagTypes, callback) {
     }
 
     function resetState() {
-        $textPane.children("span.active").removeClass('active')
+        if ($textPane)
+            $textPane.children("span.active").removeClass('active')
         currentAction = {
             highlightMode: false,
             endIdx: NaN,
@@ -214,10 +254,13 @@ jQuery.fn.textTagger = function (text, tagTypes, callback) {
             limit: NaN,
             selectedToken: []
         }
-        $creationMenu.hide()
-        $modificationMenu.hide()
+        if ($creationMenu)
+            $creationMenu.hide()
+        if ($modificationMenu)
+            $modificationMenu.hide()
     }
 
+    return api
 }
 
 // helper
