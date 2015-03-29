@@ -5,7 +5,7 @@ $(function () {
         "Diam hac quis vestibulum magna fermentum, et erat volutpat et placerat ut id, vitae nulla vestibulum non nisl est, " +
         "tristique fringilla vehicula mauris est.";
     $("#output").text(text)
-
+    $("#tags-in-text").html("<em>Start tagging and your tags will show up here</em>")
     var textTagger = $("#main").textTagger(text, [
         {
             textLabel: 'Organization',
@@ -29,6 +29,9 @@ $(function () {
         }
     ], function (userTaggedResult) {
         $("#output").text(userTaggedResult.nlpText)
+        $("#tags-in-text").html(userTaggedResult.tags.map(function (tag) {
+            return "<span class='tagged " + tag.type + "'>" + tag.text + "</span>"
+        }).join(' '))
     })
 
     $('#next').on('click', function () {

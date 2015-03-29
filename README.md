@@ -54,9 +54,13 @@ $(function () {
 })
 ```
 
-The argument passed to the `callbackFn` contains the following properties: `type`, `taggedText` and `nlpText`
+The argument passed to the `callbackFn` contains the following properties:
 
-`nlpText` comprises of raw text interlaced with the user tagged text, denoted as `<START:type> [User Tagged Text] <END>`. This notation is compatible with OpenNLP Named Entity Recognition training engine.
+ - type - The tag type of the most recently tagged text
+ - taggedText - The most recently tagged text
+ - nlpText - Raw text interlaced with the user tagged text, denoted with `<START:type> [User Tagged Text] <END>`. This notation is compatible with OpenNLP Named Entity Recognition training engine.
+ - tags - Array of all tags in the text
+
 
 You can pre-tag text using OpenNLP notation. For example `foo bar <START:person>John Doe<END>`
 

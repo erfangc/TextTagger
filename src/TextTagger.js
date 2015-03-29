@@ -97,11 +97,7 @@ jQuery.fn.textTagger = function (text, tagTypes, callback) {
         showContextMenu(event, $modificationMenu).done(function (selectedType) {
             if (selectedType == 'delete') {
                 $elem.before($(textToSpan($elem.text())).on('click', handleTokenClick).hover(handleTokenHover)).remove()
-                callbackFn({
-                    type: selectedType,
-                    nlpText: convertHTMLToAnnotatedText($textPane),
-                    taggedText: currentAction.selectedToken.join(" ")
-                })
+                invokeCallback(selectedType)
             }
             else if (selectedType != 'cancel') {
                 $.each(tagTypes, function (idx, tagType) {
@@ -109,11 +105,7 @@ jQuery.fn.textTagger = function (text, tagTypes, callback) {
                 })
                 $elem.addClass(selectedType)
                 $elem.attr('data-type', selectedType)
-                callbackFn({
-                    type: selectedType,
-                    nlpText: convertHTMLToAnnotatedText($textPane),
-                    taggedText: currentAction.selectedToken.join(" ")
-                })
+                invokeCallback(selectedType)
             }
             resetState()
         })
@@ -127,11 +119,7 @@ jQuery.fn.textTagger = function (text, tagTypes, callback) {
             showContextMenu(event, $creationMenu).done(function (selectedType) {
                 if (selectedType != 'cancel') {
                     addTaggedSpanToHTML($textPane, currentAction, selectedType)
-                    callbackFn({
-                        type: selectedType,
-                        nlpText: convertHTMLToAnnotatedText($textPane),
-                        taggedText: currentAction.selectedToken.join(" ")
-                    })
+                    invokeCallback(selectedType);
                 }
                 resetState()
             })
@@ -143,6 +131,21 @@ jQuery.fn.textTagger = function (text, tagTypes, callback) {
             currentAction.limit = computeHighlightLimit($elem.index(), $textPane) // limit = index of the next tagged entity
             currentAction.highlightMode = true
         }
+    }
+
+    /**
+     * Invoke user supplied callback function given a selectionType. This function will make use
+     * of the current global state (currentAction, $textPane etc ...) to formulate an argument list for the callback function
+     * @param selectedType
+     */
+    function invokeCallback(selectedType) {
+        var convertedText = convertHTMLToAnnotatedText($textPane);
+        callbackFn({
+            type: selectedType,
+            nlpText: convertedText.text,
+            tags: convertedText.tags,
+            taggedText: currentAction.selectedToken.join(" ")
+        })
     }
 
     function handleTokenHover(event) {
@@ -221,13 +224,19 @@ jQuery.fn.textTagger = function (text, tagTypes, callback) {
      */
     function convertHTMLToAnnotatedText($htmlContainer) {
         var $html = $htmlContainer.clone()
+        var tags = []
+
         // for every span w/ class 'tagged' we surround the inner text with <START:...>...<END>
         $.each($html.children('span.tagged'), function (idx, taggedSpan) {
             var $taggedSpan = $(taggedSpan)
+            tags.push({text: $taggedSpan.text(), type: $taggedSpan.data('type')})
             $taggedSpan.html("&lt;START:" + $taggedSpan.data('type') + "&gt; " + $taggedSpan.text() + " &lt;END&gt;")
         })
-        // flatten all the spans into plain text
-        return $html.text()
+        // flatten all the $taggedSpans into plain text
+        return {
+            text: $html.text(),
+            tags: tags
+        }
     }
 
     /**
