@@ -1,3 +1,5 @@
+*This is a new plugin - many features are only available in master. To pull the latest, use `bower install textTagger#master`*
+
 # TextTagger
 
 Text Tagger plugin using jQuery is a simple widget that enables user to highlight text with hover instead of drag. With the ability to bring up a context menu. Useful for allowing users to tag/annotate text
