@@ -201,18 +201,20 @@ jQuery.fn.textTagger = function (text, tagTypes, callback) {
      * @return jQuery element that wraps the text
      */
     function convertAnnotatedTextToHTML(rawText) {
-        var normalTokens = rawText.split(/<START:\w+>[\w|\s]+<END>/g).map(function (tokenFragment) {
+        var nlpRegex = /<START:(\w+)>(.*?)<END>/g
+
+        var normalTokens = rawText.split(/<START:\w+>.*?<END>/g).map(function (tokenFragment) {
             return textToSpan(tokenFragment)
         })
 
-        var taggedMatches = rawText.match(/<START:(\w+)>([\w|\s]+)<END>/g)
-        var taggedTokens = taggedMatches ? taggedMatches.map(function (match) {
-            return match.replace(/<START:(\w+)>([\w|\s]+)<END>/g, "<span data-type='$1' class='$1 tagged'>$2</span>")
+        var taggedMatches = rawText.match(nlpRegex)
+        var taggedSpans = taggedMatches ? taggedMatches.map(function (match) {
+            return match.replace(nlpRegex, "<span data-type='$1' class='$1 tagged'>$2</span>")
         }) : []
 
         var result = normalTokens[0]
-        for (var i = 0; i < taggedTokens.length; i++) {
-            result = result + taggedTokens[i] + normalTokens[i + 1]
+        for (var i = 0; i < taggedSpans.length; i++) {
+            result = result + taggedSpans[i] + normalTokens[i + 1]
         }
         return $("<div>" + result + "</div>")
     }

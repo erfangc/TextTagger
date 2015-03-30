@@ -2,7 +2,7 @@ $(function () {
     var text = "Lorem <START:policy>ipsum dolor<END> sit amet, sit lacus vestibulum vel platea aliquam. " +
         "Id consectetuer auctor viverra ac orci, repellat <START:organization>cursus in morbi est<END>. " +
         "Pretium erat tellus nunc etiam, ac justo. In non ac ornare sed, volutpat ipsum nunc velit. " +
-        "Diam hac quis vestibulum magna fermentum, et erat volutpat et placerat ut id, vitae nulla vestibulum non nisl est, " +
+        "Diam hac <START:location>quis's vestibulums G.A.G?<END> fermentum, et erat volutpat et placerat ut id, vitae nulla vestibulum non nisl est, " +
         "tristique fringilla vehicula mauris est.";
     $("#output").text(text)
     $("#tags-in-text").html("<em>Start tagging and your tags will show up here</em>")
